@@ -16,8 +16,8 @@ def simulate_subjective_test(score, std, error_rate, next_pair, pre_pcm, n_image
             continue
 
     
-        DATA_i = np.random.normal(score[i], std[i])
-        DATA_j = np.random.normal(score[j], std[j])
+        DATA_i = np.random.normal(score[0, i], std[0, i])
+        DATA_j = np.random.normal(score[0, j], std[0, j])
         rand = np.random.uniform(0, 1)
         if DATA_i > DATA_j:
             if rand > error_rate:

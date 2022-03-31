@@ -5,9 +5,11 @@ import numpy as np
 from numpy.random import rand, randint
 from src.utils import eig
 
-
 class GeneticAlgorithm:
-
+    """
+    This a class that implements the genetic algorithm 
+    to find the best pairs out of all the possible pairs.
+    """
     def __init__(self, n_pairs, n_iter, n_pop, r_cross, r_mut, global_pcm) -> None:
         self.n_pairs = n_pairs
         self.n_iter = n_iter
@@ -17,30 +19,34 @@ class GeneticAlgorithm:
         self.global_pcm = global_pcm
 
     def fitness_func(self, solution):
-        [mu,mu_cova,stdv] = eig.run_modeling_Bradley_Terry(self.global_pcm)
+        [mu, mu_cova] = eig.run_modeling_Bradley_Terry(self.global_pcm)
         EIG_mtx = eig.EIG(mu, mu_cova)
         solution = np.array(solution)
+
+        # keeping index of the selected pairs
         result = np.where(solution == 1)
 
+        # Fill the temp list with the EIG of the corresponding indexex 
         temp = []
         temp = list(map(lambda a : EIG_mtx[a], result[0]))
         
-        # normalize the data attributes
-        
+        # normalize the data 
         temp = [float(i)/sum(temp) for i in temp]
 
         sum_eig = 0.0
         if temp:
             sum_eig = reduce(lambda x, y:float(x)+float(y), temp)
             out = sum_eig/len(temp)
-        print(f"eig is {out}, sum is {(sum(solution)/len(solution))}")
+        else:
+            out = 0.0
+        # print(f"eig is {out}, count is {(sum(solution)/len(solution))}")
         # return  sum(solution)
-        return  (out - (sum(solution)/len(solution)))
+        return  ((10*out) - (sum(solution)/len(solution)))
 
     def selection(self, pop, scores, k=3):
         selection_ix = randint(len(pop))
         for ix in randint(0, len(pop), k-1):
-            if scores[ix] < scores[selection_ix]:
+            if scores[ix] > scores[selection_ix]:
                 selection_ix = ix
         return pop[selection_ix]
 
@@ -58,16 +64,18 @@ class GeneticAlgorithm:
             if rand() < self.r_mut:
                 bitstring[i] = 1 - bitstring[i]
 
+    
     def run(self):
         pop = [randint(0, 2, self.n_pairs).tolist() for _ in range(self.n_pop)]
         
         best, best_eval = 0, self.fitness_func(pop[0])
         for gen in range(self.n_iter):
+            # print(gen)
             scores = [self.fitness_func(c) for c in pop]
             for i in range(self.n_pop):
                 if scores[i] < best_eval:
                     best, best_eval = pop[i], scores[i]
-                    print(">%d, new best f(%s) = %.3f" % (gen,  pop[i], scores[i]))
+                    # print(">%d, new best f(%s) = %.3f" % (gen,  pop[i], scores[i]))
 
             # select parents
             selected = [self.selection(pop, scores) for _ in range(self.n_pop)]
