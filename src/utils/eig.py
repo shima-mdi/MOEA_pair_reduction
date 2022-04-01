@@ -5,6 +5,9 @@ import sys
 import math
 
 
+"""This module is obtained from Hyper-MST method 
+"""
+
 def run_modeling_Bradley_Terry(alpha):
     M, M_ = alpha.shape
     assert M == M_
@@ -78,7 +81,6 @@ def EIG_GaussianHermitte_matrix_Hybrid_MST(mu_mtx, sigma_mtx):
     ret = -np.triu(ret, 1)
     info = ret[np.triu_indices(ret.shape[0], k=1)]
     return info
-
 
 def EIG(mu, mu_cova):
     pvs_num = len(mu)
