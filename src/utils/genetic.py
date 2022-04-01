@@ -31,17 +31,14 @@ class GeneticAlgorithm:
         temp = list(map(lambda a : EIG_mtx[a], result[0]))
         
         # normalize the data 
-        temp = [float(i)/sum(temp) for i in temp]
-
         sum_eig = 0.0
         if temp:
             sum_eig = reduce(lambda x, y:float(x)+float(y), temp)
-            out = sum_eig/len(temp)
+            out = sum_eig / len(temp)
         else:
             out = 0.0
-        # print(f"eig is {out}, count is {(sum(solution)/len(solution))}")
-        # return  sum(solution)
-        return  ((10*out) - (sum(solution)/len(solution)))
+        
+        return  ((out)  - (sum(solution)  / len(solution)  ) )
 
     def selection(self, pop, scores, k=3):
         selection_ix = randint(len(pop))
@@ -51,7 +48,6 @@ class GeneticAlgorithm:
         return pop[selection_ix]
 
     def crossover(self, p1, p2):
-        # children are copies of parents by default
         c1, c2 = p1.copy(), p2.copy()
         if rand() < self.r_cross:
             pt = randint(1, len(p1)-2)
@@ -64,20 +60,17 @@ class GeneticAlgorithm:
             if rand() < self.r_mut:
                 bitstring[i] = 1 - bitstring[i]
 
-    
     def run(self):
         pop = [randint(0, 2, self.n_pairs).tolist() for _ in range(self.n_pop)]
         
         best, best_eval = 0, self.fitness_func(pop[0])
         for gen in range(self.n_iter):
-            # print(gen)
-            scores = [self.fitness_func(c) for c in pop]
+            scores = [ self.fitness_func(c) for c in pop]
             for i in range(self.n_pop):
-                if scores[i] < best_eval:
+                if scores[i] > best_eval:
                     best, best_eval = pop[i], scores[i]
-                    # print(">%d, new best f(%s) = %.3f" % (gen,  pop[i], scores[i]))
 
-            # select parents
+            # Update population
             selected = [self.selection(pop, scores) for _ in range(self.n_pop)]
             children = list()
             for i in range(0, self.n_pop, 2):
