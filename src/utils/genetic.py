@@ -34,13 +34,14 @@ class GeneticAlgorithm:
         sum_eig = 0.0
         if temp:
             sum_eig = reduce(lambda x, y:float(x)+float(y), temp)
-            out = sum_eig / len(temp)
+            out = sum_eig / len(solution)
         else:
             out = 0.0
         
-        return  ((out)  - (sum(solution)  / len(solution)  ) )
+        return  (1.4 * (out)  - (sum(solution)  / len(solution)  ) )
 
     def selection(self, pop, scores, k=3):
+        # k = len(pop)
         selection_ix = randint(len(pop))
         for ix in randint(0, len(pop), k-1):
             if scores[ix] > scores[selection_ix]:

@@ -1,9 +1,9 @@
+import matlab.engine
 import numpy as np
-from src.data import DATA_DIR
-from src.utils import evaluation, genetic, simulation
-import matplotlib.pyplot as plt
-import scipy.io
 
+from src.data import DATA_DIR
+from src.utils import evaluation, genetic, loading_matlab, plotting, simulation
+from src.utils.eig import run_modeling_Bradley_Terry
 
 def Initial_learning(pcm):
     pvs_num, pvs_num_ = np.shape(pcm)
@@ -11,82 +11,26 @@ def Initial_learning(pcm):
     pcm[range(pvs_num), range(pvs_num)] = 0
     return pcm
 
-def plot(x:list, y:list):
-    plt.plot(x, y)
-    plt.xlabel('Number of pairs')
-    plt.ylabel('PLCC')
-    plt.title("PLCC vs Number of pairs")
-    plt.show()
-    plt.legend('MOEA    ')
-    plt.savefig('filename.png')
 
-
-def state_of_the_art(n_compared_pairs, pearson):
-    """A function to compare the state of the art performance
-    """
-    x = np.arange(1, 1801).reshape(1,-1)
-
-    crowdBT = scipy.io.loadmat('crowdBT.plcc.mat')
-    hrrg_active = scipy.io.loadmat('hrrg.active.plcc.mat')
-    hrrg_random = scipy.io.loadmat('hrrg.random.plcc.mat')
-    Hyper_mst = scipy.io.loadmat('hpermst.plcc.mat')
-    trial = scipy.io.loadmat('hypermst.trail.mat')
-
-    crowdBT = crowdBT['plcc_result']
-    hrrg_active = hrrg_active['plcc_result']
-    hrrg_random = hrrg_random['plcc_result']
-    Hyper_mst = Hyper_mst['plcc_result']
-    trial = trial['trial']
-
-    pairs = []
-    crowdBT_plcc = []
-    hrrg_active_plcc = []
-    hrrg_random_plcc = []
-    for i in range (1800):
-        pairs.append(x[0][i])
-        crowdBT_plcc.append(crowdBT[0][i])
-        hrrg_active_plcc.append(hrrg_active[0][i])
-        hrrg_random_plcc.append(hrrg_random[0][i])
-
-    y = []
-    Hyper_mst_plcc =[]
-    for i in range(233):
-        y.append(trial[0,i])
-        Hyper_mst_plcc.append(Hyper_mst[0][i]) 
-    # plt.plot(pairs, np.arctanh(crowdBT_plcc), color='r', label='Crowd-BT')
-    # plt.plot(pairs, np.arctanh(hrrg_active_plcc), color='g', label='HRRG-active')
-    # plt.plot(pairs, np.arctanh(hrrg_random_plcc), color='b', label='HRRG-random')
-    # plt.plot(y, np.arctanh(Hyper_mst_plcc), color='c', label='Hyper-mst')
-    # plt.plot(n_compared_pairs, np.arctanh(pearson),  color='m', label='Genetic-based')
-
-    plt.plot(pairs, crowdBT_plcc, color='r', label='Crowd-BT')
-    plt.plot(pairs, hrrg_active_plcc, color='g', label='HRRG-active')
-    plt.plot(pairs, hrrg_random_plcc, color='b', label='HRRG-random')
-    plt.plot(y, Hyper_mst_plcc, color='c', label='Hyper-mst')
-    plt.plot(n_compared_pairs, pearson,  color='m', label='Genetic-based')
-
-
-    # Naming the x-axis, y-axis and the whole graph
-    plt.xlabel("number of pairs")
-    plt.ylabel("PLCC")
-    plt.title("State of the art comparison")
-    
-    # Adding legend, which helps us recognize the curve according to it's color
-    plt.legend()
-    
-    # To load the display window
-    plt.show()
-    plt.savefig('filename.png')
+def gt_pcm(n, data):
+    z = np.zeros((n, n))
+    for row in data['data_ref']:
+         z[row[0]-1,row[1]-1] = z[row[0]-1,row[1]-1]+1
+    return z
 
 
 def main():
+
+    # Choices for mode are simultion and IQA
+    mode = 'simulation'
+    # mode = 'IQA'
 
     n_compared_pairs = []
     pearson = []
     spearman = []
     mae = []
 
-    n_iter = 10
+    n_iter = 30
 
     # degraded images per a reference image
     n_images = 16
@@ -96,9 +40,17 @@ def main():
 
     # simulate dataset
     error_rate = 0.1
-    mu, std = simulation.generate_dataset(n_images)
 
+    if mode == 'simulation':
+        mu, std = simulation.generate_dataset(n_images)
+
+    elif mode == 'IQA':
     # Read IQA dataset
+        eng = matlab.engine.start_matlab()
+        # Load first refernce of IQA dataset. You can change the pathe in utils/matlab.py to load onother refernce
+        IQA_data = loading_matlab.load_mat_file()
+        z = gt_pcm(n_images, IQA_data)
+        gt_score_IQA, _ = run_modeling_Bradley_Terry(z)
 
     # number of genes in one chromosome
     n_pairs = int(full_design)
@@ -114,6 +66,8 @@ def main():
     global_pcm = Initial_learning(pcm)
     n_subjects = 15
 
+   
+
     # loop over the MOEA untill  maximuim number of pairs is reach
     count = 0
     while (count < (n_subjects * full_design)):
@@ -123,13 +77,18 @@ def main():
         print(f"best solution is {best} and score is {score}")
         
         # simulate subjective test and update global pcm
-        global_pcm = simulation.simulate_subjective_test(mu, std, error_rate, best, global_pcm, n_images)
+        # global_pcm = simulation.simulate_subjective_test(mode, mu, std, error_rate, best, global_pcm, n_images)
         
         # learn performance
-        [p, s, m] = evaluation.learning_performance_evaluation(global_pcm, mu)
+        if mode == 'simulation':
+            global_pcm = simulation.simulate_subjective_test(mode, mu, error_rate, best, global_pcm, n_images, std)
+            [p, s, m] = evaluation.learning_performance_evaluation(mode, global_pcm, mu)
+
+        elif mode == 'IQA':
+            global_pcm = simulation.simulate_subjective_test(mode, IQA_data, error_rate, best, global_pcm, n_images)
+            [p, s, m] = evaluation.learning_performance_evaluation(mode, global_pcm, gt_score_IQA)
 
         # save the performance evaluation and number of pairs
-       
         pearson.append(p)
         spearman.append(s)
         mae.append(m)
@@ -139,7 +98,7 @@ def main():
         print(f"performance plc={p} and count {count}")
 
     print(global_pcm)
-    state_of_the_art(n_compared_pairs, pearson)
+    plotting.state_of_the_art(n_compared_pairs, pearson)
     # plot(n_compared_pairs, pearson)
 
 
